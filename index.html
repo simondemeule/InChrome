@@ -27,6 +27,9 @@
 
             */
 
+            // configures audio for same-room setup using a pair of speakers per computer
+            var selfAudioOutputOnly = true;
+
             function Player() {
                 this.id = null;              // session id of player
                 this.phraseIndex = -1;       // phrase index in phraseSequence
@@ -63,32 +66,36 @@
                     if(this.noteTrigger) {
                         // trigger new note
                         if(audio.contextReady) {
-                            let frequency = Math.pow(2, this.noteClass / 12.0 + this.noteOctave) * 16.35;
-                            let attack = 5.0 / frequency;
-                            let decay = 900.0 / frequency;
+                            if(!selfAudioOutputOnly || this == players[0]) {
+                                let frequency = Math.pow(2, this.noteClass / 12.0 + this.noteOctave) * 16.35;
+                                let attack = 5.0 / frequency;
+                                let decay = 900.0 / frequency;
 
-                            this.voice.carrier.oscillator.frequency.value = frequency;
-                            this.voice.modulator.oscillator.frequency.value = frequency;
+                                this.voice.carrier.oscillator.frequency.value = frequency;
+                                this.voice.modulator.oscillator.frequency.value = frequency;
 
-                            this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                            this.voice.carrier.gain.gain.exponentialRampToValueAtTime(1, audio.context.currentTime + attack);
-                            this.voice.carrier.gain.gain.setValueAtTime(1, audio.context.currentTime + attack);
-                            this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
+                                this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(1, audio.context.currentTime + attack);
+                                this.voice.carrier.gain.gain.setValueAtTime(1, audio.context.currentTime + attack);
+                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
 
-                            this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                            this.voice.modulator.gain.gain.exponentialRampToValueAtTime(100, audio.context.currentTime + attack);
-                            this.voice.modulator.gain.gain.setValueAtTime(100, audio.context.currentTime + attack);
-                            this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
+                                this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(100, audio.context.currentTime + attack);
+                                this.voice.modulator.gain.gain.setValueAtTime(100, audio.context.currentTime + attack);
+                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
+                            }
                         }
                     }
                     if(this.noteMute) {
                         // mute current note
-                        if(audio.contextReady) {
-                            this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                            this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
+                        if(!selfAudioOutputOnly || this == players[0]) {
+                            if(audio.contextReady) {
+                                this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
 
-                            this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                            this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
+                                this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
+                            }
                         }
                     }
                 },
@@ -525,44 +532,54 @@
                 this.updateNodes = function() {
                     console.log("Updating audio nodes");
                     if(audio.contextReady) {
-                        let newVoice = false;
-                        // at least one undefined voice, need to adjust gains and create voice
-                        for(let i = 0; i < players.length; i++) {
-                            if(typeof players[i].voice == "undefined") {
-                                newVoice = true;
-                                players[i].voice = new Voice(0, 0, 0);
-                                players[i].voice.panner.connect(audio.delay);
-                                players[i].voice.panner.connect(audio.gain);
+                        if(selfAudioOutputOnly) {
+                            if(typeof players[0].voice == "undefined") {
+                                players[0].voice = new Voice(0, 0, 0);
+                                players[0].voice.panner.connect(audio.delay);
+                                players[0].voice.panner.connect(audio.gain);
                             }
-                        }
-                        if(newVoice) {
-                            // automatic constant-power gain control
-                            audio.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                            audio.gain.gain.exponentialRampToValueAtTime(Math.sqrt(1.0 / (players.length)), audio.context.currentTime + 1)
+                        } else {
+                            let newVoice = false;
+                            // at least one undefined voice, need to adjust gains and create voice
+                            for(let i = 0; i < players.length; i++) {
+                                if(typeof players[i].voice == "undefined") {
+                                    newVoice = true;
+                                    players[i].voice = new Voice(0, 0, 0);
+                                    players[i].voice.panner.connect(audio.delay);
+                                    players[i].voice.panner.connect(audio.gain);
+                                }
+                            }
+                            if(newVoice) {
+                                // automatic constant-power gain control
+                                audio.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                                audio.gain.gain.exponentialRampToValueAtTime(Math.sqrt(1.0 / (players.length)), audio.context.currentTime + 1)
+                            }
                         }
                     }
                 }
 
                 this.updatePan = function() {
-                    if(audio.contextReady) {
-                        let step = players[0].phraseLengthCummulative[players[0].phraseIndex] + players[0].phraseStep;
-                        for(let i = 0; i < players.length; i++) {
-                            let pan = 0;
-                            if(players[i].phraseIndex >= 0 && players[i].phraseIndex < players[0].phraseSequence.length) {
-                                let delta = players[0].phraseLengthCummulative[players[i].phraseIndex] + players[i].phraseStep - step;
-                                pan = 0.7 * Math.tanh(delta / 40.0);
-                            } else {
-                                if(players[i].phraseIndex < 0) {
-                                    pan = -0.7;
+                    if(!selfAudioOutputOnly) {
+                        if(audio.contextReady) {
+                            let step = players[0].phraseLengthCummulative[players[0].phraseIndex] + players[0].phraseStep;
+                            for(let i = 0; i < players.length; i++) {
+                                let pan = 0;
+                                if(players[i].phraseIndex >= 0 && players[i].phraseIndex < players[0].phraseSequence.length) {
+                                    let delta = players[0].phraseLengthCummulative[players[i].phraseIndex] + players[i].phraseStep - step;
+                                    pan = 0.7 * Math.tanh(delta / 40.0);
                                 } else {
-                                    pan = 0.7;
+                                    if(players[i].phraseIndex < 0) {
+                                        pan = -0.7;
+                                    } else {
+                                        pan = 0.7;
+                                    }
                                 }
+                                if(pan == 0) {
+                                    pan = 0.000001;
+                                }
+                                players[i].voice.panner.pan.cancelAndHoldAtTime(audio.context.currentTime);
+                                players[i].voice.panner.pan.linearRampToValueAtTime(pan, audio.context.currentTime + 0.125);
                             }
-                            if(pan == 0) {
-                                pan = 0.000001;
-                            }
-                            players[i].voice.panner.pan.cancelAndHoldAtTime(audio.context.currentTime);
-                            players[i].voice.panner.pan.linearRampToValueAtTime(pan, audio.context.currentTime + 0.125);
                         }
                     }
                 }
