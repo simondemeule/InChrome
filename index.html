@@ -224,12 +224,10 @@
                 octaveUp: function() {
                     // increases the register of sound
                     this.noteOctave = this.noteOctave + 1 > 5 ? 6 : this.noteOctave + 1;
-                    console.log("noteOctave up to: " + this.noteOctave);
                 },
                 octaveDown: function() {
                     // decreases the register of sound
                     this.noteOctave = this.noteOctave - 1 < 2 ? 2 : this.noteOctave - 1;
-                    console.log("noteOctave down to: " + this.noteOctave);
                 },
                 /*
                 [score
@@ -554,9 +552,12 @@
                                 let delta = players[0].phraseLengthCummulative[players[i].phraseIndex] + players[i].phraseStep - step;
                                 pan = 0.7 * Math.tanh(delta / 40.0);
                             } else {
-                                pan = -0.7;
+                                if(players[i].phraseIndex < 0) {
+                                    pan = -0.7;
+                                } else {
+                                    pan = 0.7;
+                                }
                             }
-                            console.log(i + " -> " + pan);
                             if(pan == 0) {
                                 pan = 0.000001;
                             }
@@ -781,7 +782,6 @@
                         graphics.ySplitTarget = 0;
                     }
                     if(graphics.stepTutorial != graphics.stepTutorialLast) {
-                        console.log("state change: " + graphics.stepTutorialLast + " -> " + graphics.stepTutorial);
                         // set easing target if tutorial step changed
                         graphics.stepTutorialLast = graphics.stepTutorial;
                         switch(graphics.stepTutorial) {
