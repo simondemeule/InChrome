@@ -540,6 +540,8 @@
                 let canvas = this.canvas;
                 let context = this.context;
 
+                this.language = "english";
+
                 this.pixelRatio = null;
 
                 this.canvas = null;
@@ -565,6 +567,7 @@
                 this.xScaleSetting = 0;
 
                 this.stepTutorial = 0;
+                this.stepTutorialLast = 0;
                 this.ySplitTarget = null;
                 this.ySplit = null;
 
@@ -575,6 +578,14 @@
                     } else {
                         graphics.timeTickDelta = Date.now() - graphics.timeTickLast;
                         graphics.timeTickLast = graphics.timeTickDelta + graphics.timeTickLast;
+                    }
+                }
+
+                this.switchLanguage = function() {
+                    if(graphics.language == "french") {
+                        graphics.language = "english";
+                    } else if (graphics.language == "english") {
+                        graphics.language = "french";
                     }
                 }
 
@@ -593,7 +604,6 @@
                     graphics.canvas = document.getElementById('canvas');
                     graphics.context = graphics.canvas.getContext('2d');
                     graphics.pixelRatio = graphics.getPixelRatio();
-                    console.log(graphics.pixelRatio);
                     graphics.canvas.style.width = document.body.clientWidth + "px";
                     graphics.canvas.style.height = document.body.clientHeight + "px";
                     graphics.canvas.width = graphics.pixelRatio * document.body.clientWidth;
@@ -703,126 +713,212 @@
                     graphics.drawKey("▲", highlightArray[2], xCenter, yCenter - rectScale - spaceScale);
                 }
 
+                this.drawLanguageError = function() {
+                    // draws unsupported language text
+                    graphics.context.fillStyle = "#000000";
+                    graphics.context.fillRect(0, 0, graphics.canvas.width, graphics.canvas.height);
+                    graphics.drawTextFromArray([
+                        "Error: language \"" + graphics.language + "\" is unsupported."], graphics.canvas.width / 2, graphics.canvas.height / 2);
+                }
+
                 this.drawBrowserError = function() {
                     // draws unsupported browser text
                     graphics.context.fillStyle = "#000000";
                     graphics.context.fillRect(0, 0, graphics.canvas.width, graphics.canvas.height);
-                    graphics.drawTextFromArray([
-                        "Sorry, your browser is not supported.",
-                        "Please use Google Chrome!"], graphics.canvas.width / 2, graphics.canvas.height / 2);
+                    if(graphics.language == "french") {
+                        graphics.drawTextFromArray([
+                            "Désolé, votre navigateur web n'est pas supporté.",
+                            "Veuillez utiliser Google Chrome!"], graphics.canvas.width / 2, graphics.canvas.height / 2);
+                    } else if (graphics.language == "english"){
+                        graphics.drawTextFromArray([
+                            "Sorry, your browser is not supported.",
+                            "Please use Google Chrome!"], graphics.canvas.width / 2, graphics.canvas.height / 2);
+                    } else {
+                        graphics.drawLanguageError();
+                        throw new Error("unsupported language")
+                    }
                 }
 
                 this.drawTutorial = function() {
                     // draws tutorial screens
+                    if(graphics.ySplit == null) {
+                        graphics.ySplit = 0;
+                    }
+                    if(graphics.ySplitTarget == null) {
+                        graphics.ySplitTarget = 0;
+                    }
+                    if(graphics.stepTutorial != graphics.stepTutorialLast) {
+                        console.log("state change: " + graphics.stepTutorialLast + " -> " + graphics.stepTutorial);
+                        // set easing target if tutorial step changed
+                        graphics.stepTutorialLast = graphics.stepTutorial;
+                        switch(graphics.stepTutorial) {
+                            case -1:
+                                graphics.ySplitTarget = graphics.canvas.height;
+                                graphics.yScaleTarget = graphics.yScaleBasis;
+                                graphics.yOffsetTarget = graphics.yOffsetBasis;
+                                break;
+                            case 0:
+                                graphics.ySplitTarget = 0;
+                                break;
+                            case 1:
+                            case 2:
+                            case 3:
+                            case 4:
+                                graphics.ySplitTarget = graphics.canvas.height / 2;
+                                graphics.yScaleTarget = graphics.yScaleBasis / 2;
+                                graphics.yOffsetTarget = graphics.yOffsetBasis / 2;
+                                break;
+                            case 5:
+                                graphics.ySplitTarget = graphics.canvas.height;
+                                graphics.yScaleTarget = graphics.yScaleBasis;
+                                graphics.yOffsetTarget = graphics.yOffsetBasis;
+                                break;
+                        }
+                    }
+                    if(Math.abs(graphics.ySplitTarget - graphics.ySplit) < 1) {
+                        // done easing
+                        graphics.ySplit = graphics.ySplitTarget;
+                    } else {
+                        // not done easing
+                        graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
+                    }
                     switch(graphics.stepTutorial) {
                         case -1:
                             // tutorial exit screen (from first)
-                            if(this.ySplitTarget == null) {
-                                graphics.ySplitTarget = graphics.canvas.height;
-                            }
-                            graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) < 1) {
-                                // stop drawing drawTutorial
-                                graphics.onAnimationFrame = [function() {graphics.clear()}, function() {graphics.drawScore()}];
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
                             break;
                         case 0:
                             // first tutorial screen
-                            if(graphics.ySplit == null) {
-                                graphics.ySplit = 0;
-                            }
                             graphics.context.fillStyle = "#000000";
-                            graphics.context.fillRect(0, 0, graphics.canvas.width, graphics.canvas.height);
-                            graphics.drawTextFromArray([
-                                "Hello! This is web-based rendition of",
-                                "Terry Riley's piece In-C, a foundational",
-                                "piece in classic minimalist music."
-                            ], graphics.canvas.width / 2, graphics.canvas.height / 4);
-                            graphics.drawTextFromArray([
-                                "Press the left arrow key to continue",
-                                "Press escape to skip"
-                            ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
+                            if(graphics.language == "french") {
+                                graphics.drawTextFromArray([
+                                    "Press L to switch to English",
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.1);
+                                graphics.drawKey("L", true, graphics.canvas.width / 2, graphics.canvas.height * 0.17)
+                                graphics.drawTextFromArray([
+                                    "Bonjour! Ceci est une version interactive",
+                                    "de la pièce In-C de Terry Riley, un incontournable",
+                                    "de la musique minimaliste classique.",
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.37);
+                                graphics.drawTextFromArray([
+                                    "Utilisez plusieurs ordinateurs pour jouer la pièce en groupe!"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.55);
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur la flèche droite pour continuer"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else if (graphics.language == "english") {
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur L pour les instructions en français",
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.1);
+                                graphics.drawKey("L", true, graphics.canvas.width / 2, graphics.canvas.height * 0.17)
+                                graphics.drawTextFromArray([
+                                    "Hello! This is web-based rendition of",
+                                    "Terry Riley's piece In-C, a foundational",
+                                    "piece in classic minimalist music."
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.37);
+                                graphics.drawTextFromArray([
+                                    "Use multiple computers to play the piece collaboratively!"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 0.55);
+                                graphics.drawTextFromArray([
+                                    "Press the right arrow key to continue"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else {
+                                graphics.drawLanguageError();
+                                throw new Error("unsupported language")
+                            }
                             graphics.drawArrowKeys([false, true, false, false], graphics.canvas.width / 2, graphics.canvas.height * 7 / 8);
                             break;
                         case 1:
                             // second tutorial screen
-                            if(this.ySplitTarget == null) {
-                                graphics.ySplitTarget = graphics.canvas.height / 2;
-                                graphics.yScaleTarget = graphics.yScaleBasis / 2;
-                                graphics.yOffsetTarget = graphics.yOffsetBasis / 2;
-                            }
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) > 1) {
-                                graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            } else {
-                                graphics.ySplit = graphics.ySplitTarget;
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
-                            graphics.drawTextFromArray([
-                                "Press the left and right arrows to ",
-                                "select a musical phrase"
-                            ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            if(graphics.language == "french") {
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur la flèche droite ou gauche pour",
+                                    "sélectionner une phrase musicale"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else if (graphics.language == "english") {
+                                graphics.drawTextFromArray([
+                                    "Press the left and right arrows to",
+                                    "select a musical phrase"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else {
+                                graphics.drawLanguageError();
+                                throw new Error("unsupported language")
+                            }
                             graphics.drawArrowKeys([true, true, false, false], graphics.canvas.width / 2, graphics.canvas.height * 7 / 8);
                             break;
                         case 2:
                             // third tutorial screen
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) > 1) {
-                                graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            } else {
-                                graphics.ySplit = graphics.ySplitTarget;
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
-                            graphics.drawTextFromArray([
-                                "Press the up and down arrows to ",
-                                "change octaves"
-                            ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            if(graphics.language == "french") {
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur la flèche haute ou basse",
+                                    "pour changer d'octave"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else if (graphics.language == "english") {
+                                graphics.drawTextFromArray([
+                                    "Press the up and down arrows to ",
+                                    "change octaves"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else {
+                                graphics.drawLanguageError();
+                                throw new Error("unsupported language")
+                            }
                             graphics.drawArrowKeys([false, false, true, true], graphics.canvas.width / 2, graphics.canvas.height * 7 / 8);
                             break;
                         case 3:
                             // fourth tutorial screen
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) > 1) {
-                                graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            } else {
-                                graphics.ySplit = graphics.ySplitTarget;
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
-                            graphics.drawTextFromArray([
-                                "Press the space bar to restart",
-                                "a phrase"
-                            ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            if(graphics.language == "french") {
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur l'espace pour redémarrer",
+                                    "une phrase"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else if (graphics.language == "english") {
+                                graphics.drawTextFromArray([
+                                    "Press the space bar to restart",
+                                    "a phrase"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else {
+                                graphics.drawLanguageError();
+                                throw new Error("unsupported language")
+                            }
                             graphics.drawKey("space", true, graphics.canvas.width / 2, graphics.canvas.height * 7 / 8);
                             break;
                         case 4:
                             // fifth tutorial screen
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) > 1) {
-                                graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            } else {
-                                graphics.ySplit = graphics.ySplitTarget;
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
-                            graphics.drawTextFromArray([
-                                "Press the shift key to zoom",
-                                "in or out"
-                            ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            if(graphics.language == "french") {
+                                graphics.drawTextFromArray([
+                                    "Appuyez sur shift pour",
+                                    "zoomer"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else if (graphics.language == "english") {
+                                graphics.drawTextFromArray([
+                                    "Press the shift key to zoom",
+                                    "in or out"
+                                ], graphics.canvas.width / 2, graphics.canvas.height * 2 / 3);
+                            } else {
+                                graphics.drawLanguageError();
+                                throw new Error("unsupported language")
+                            }
                             graphics.drawKey("shift", true, graphics.canvas.width / 2, graphics.canvas.height * 7 / 8);
                             break;
                         case 5:
                             // tutorial exit screen (from fifth)
-                            graphics.ySplitTarget = graphics.canvas.height;
-                            if(Math.abs(graphics.ySplitTarget - graphics.ySplit) > 1) {
-                                graphics.ySplit += (graphics.ySplitTarget - graphics.ySplit) * 0.1;
-                            } else {
-                                // stop drawing drawTutorial
-                                graphics.onAnimationFrame = [function() {graphics.clear()}, function() {graphics.drawScore()}];
-                            }
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
                     }
+                }
+
+                this.setTutorial = function(number) {
+                    graphics.stepTutorial = number;
                 }
 
                 this.nextTutorial = function() {
@@ -1030,9 +1126,27 @@
             function Bindings() {
                 var bindings = this;
 
+                this.inactivityTimer = null;
+
+                this.resetInactivityTimer = function() {
+                    // resets inactivity timer
+                    clearTimeout(this.inactivityTimer);
+                    this.inactivityTimer = setTimeout(this.onInactivtyDetected, 12000);
+                }
+
+                this.onInactivtyDetected = function() {
+                    // called when user is inactive
+                    console.log("Inactivity detected");
+                    players[0].setPhrase(-1);
+                    communications.setPhraseRequest(-1);
+                    graphics.setTutorial(0);
+                    bindings.tutorial(0);
+                }
+
                 this.score = function() {
                     // bindings for score player
                     document.onkeydown = function(event) {
+                        bindings.resetInactivityTimer();
                         event = event || window.event;
 
                         if (event.keyCode == '38') {
@@ -1066,19 +1180,34 @@
                         case 0:
                             // bindings for first tutorial screen
                             document.onkeydown = function(event) {
+                                bindings.resetInactivityTimer();
                                 event = event || window.event;
-
-                                if (event.keyCode == '39') {
+                                if(event.key == "l") {
+                                    graphics.switchLanguage();
+                                } else if (event.keyCode == '39') {
                                     // right arrow
-                                    graphics.onAnimationFrame = [function() {graphics.clear()}, function() {graphics.drawScore()}, function() {graphics.drawTutorial()}];
-                                    audio.createContext();
+                                    graphics.onAnimationFrame = [
+                                        function() {graphics.clear()},
+                                        function() {graphics.drawScore()},
+                                        function() {graphics.drawTutorial()}
+                                    ];
+                                    if(!audio.contextReady) {
+                                        audio.createContext();
+                                    }
                                     players[0].setPhrase(0);
                                     communications.nextPhraseRequest();
                                     graphics.nextTutorial();
                                     bindings.tutorial(1);
                                 } else if (event.keyCode == '27') {
-                                    graphics.onAnimationFrame = [function() {graphics.clear()}, function() {graphics.drawScore()}, function() {graphics.drawTutorial()}];
-                                    audio.createContext();
+                                    // escape
+                                    graphics.onAnimationFrame = [
+                                        function() {graphics.clear()},
+                                        function() {graphics.drawScore()},
+                                        function() {graphics.drawTutorial()}
+                                    ];
+                                    if(!audio.contextReady) {
+                                        audio.createContext();
+                                    }
                                     players[0].setPhrase(0);
                                     communications.nextPhraseRequest();
                                     graphics.prevTutorial();
@@ -1089,6 +1218,7 @@
                         case 1:
                             // bindings for second tutorial screen
                             document.onkeydown = function(event) {
+                                bindings.resetInactivityTimer();
                                 event = event || window.event;
 
                                 if (event.keyCode == '37') {
@@ -1110,6 +1240,7 @@
                         case 2:
                             // bindings for third tutorial screen
                             document.onkeydown = function(event) {
+                                bindings.resetInactivityTimer();
                                 event = event || window.event;
 
                                 if (event.keyCode == '38') {
@@ -1139,6 +1270,7 @@
                         case 3:
                             // bindings for fourth tutorial screen
                             document.onkeydown = function(event) {
+                                bindings.resetInactivityTimer();
                                 event = event || window.event;
 
                                 if (event.keyCode == '38') {
@@ -1170,6 +1302,7 @@
                         case 4:
                             // bindings for fifth tutorial screen
                             document.onkeydown = function(event) {
+                                bindings.resetInactivityTimer();
                                 event = event || window.event;
 
                                 if (event.keyCode == '38') {
@@ -1211,6 +1344,10 @@
             function Communications() {
                 var socket = io();
 
+                this.setPhraseRequest = function(phrase) {
+                    socket.emit("setPhraseRequest", players[0].id, phrase);
+                }
+
                 this.nextPhraseRequest = function() {
                     socket.emit("nextPhraseRequest", players[0].id);
                 }
@@ -1230,6 +1367,24 @@
                 this.octaveDownRequest = function() {
                     socket.emit("octaveDownRequest", players[0].id);
                 }
+
+                socket.on("setPhraseRequest", function(target, phrase) {
+                    let found = false;
+                    let i = 0;
+                    while(!found && i < players.length) {
+                        if(players[i].id == target) {
+                            found = true;
+                            players[i].setPhrase(phrase);
+                        }
+                        i++;
+                    }
+                    if(found) {
+                        console.log("Recieved valid next phrase request for " + target);
+                    } else {
+                        console.log("Recieved invalid next phrase request for " + target);
+                    }
+                    console.log(players);
+                })
 
                 socket.on("nextPhraseRequest", function(target) {
                     let found = false;
@@ -1416,26 +1571,21 @@
 
             if(!!window.chrome) {
                 // supported browser
-                graphics.onAnimationFrame.push(function() {
-                    graphics.clear();
-                });
-                graphics.onAnimationFrame.push(function() {
-                    //graphics.drawScore(players[0]);
-                    graphics.drawTutorial();
-                });
+                graphics.onAnimationFrame = [
+                    function() {graphics.clear()},
+                    function() {graphics.drawTutorial()}
+                ];
 
                 communications = new Communications();
                 bindings.tutorial(0);
             } else {
                 // unsupported browser
-                graphics.onAnimationFrame.push(function() {
-                    graphics.clear();
-                });
-                graphics.onAnimationFrame.push(function() {
-                    graphics.drawBrowserError();
-                    graphics.stopAnimationFrame();
-                    throw new Error("unsupported browser")
-                });
+                graphics.onAnimationFrame = [
+                    function() {graphics.clear()},
+                    function() {graphics.drawBrowserError()},
+                    function() {graphics.stopAnimationFrame()},
+                    function() {throw new Error("unsupported browser")}
+                ];
             }
         </script>
     </div>

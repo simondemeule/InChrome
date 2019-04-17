@@ -42,6 +42,12 @@ io.on("connection", function(socket) {
         console.log("Recieved requested dump from " + data[0] + " with target " + target);
     })
 
+    socket.on("setPhraseRequest", function(target, phrase) {
+        socket.broadcast.emit("setPhraseRequest", target, phrase);
+
+        console.log("Recieved set phrase request for " + target + " with phrase " + phrase);
+    });
+
     socket.on("nextPhraseRequest", function(target) {
         socket.broadcast.emit("nextPhraseRequest", target);
 
