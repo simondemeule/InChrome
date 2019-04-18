@@ -1,10 +1,13 @@
+<!--Written by Simon Demeule, 2018-2019. Based on Terry Riley's In C-->
+
 <head>
     <meta charset="utf-8">
+    <<title>In Chrome — Simon Demeule</title>
 </head>
 
 <!--test-->
 
-<body>
+<body style="cursor: none;">
     <div class="obstructor" style="z-index: 3; position: fixed; width: 100vw; height: 100vh; top: 0; left: 0; background-color: #fff; color: #000">
         <canvas id="canvas" width="0" height="0"></canvas>
         <script type="text/javascript" src="/socket.io/socket.io.js"></script>
@@ -26,9 +29,6 @@
             • move script out -  node static
 
             */
-
-            // configures audio for same-room setup using a pair of speakers per computer
-            var selfAudioOutputOnly = true;
 
             function Player() {
                 this.id = null;              // session id of player
@@ -65,38 +65,11 @@
                     // triggers audio based on current state
                     if(this.noteTrigger) {
                         // trigger new note
-                        if(audio.contextReady) {
-                            if(!selfAudioOutputOnly || this == players[0]) {
-                                let frequency = Math.pow(2, this.noteClass / 12.0 + this.noteOctave) * 16.35;
-                                let attack = 5.0 / frequency;
-                                let decay = 900.0 / frequency;
-
-                                this.voice.carrier.oscillator.frequency.value = frequency;
-                                this.voice.modulator.oscillator.frequency.value = frequency;
-
-                                this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(1, audio.context.currentTime + attack);
-                                this.voice.carrier.gain.gain.setValueAtTime(1, audio.context.currentTime + attack);
-                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
-
-                                this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(100, audio.context.currentTime + attack);
-                                this.voice.modulator.gain.gain.setValueAtTime(100, audio.context.currentTime + attack);
-                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
-                            }
-                        }
+                        audio.playNoteForPlayer(this);
                     }
                     if(this.noteMute) {
                         // mute current note
-                        if(!selfAudioOutputOnly || this == players[0]) {
-                            if(audio.contextReady) {
-                                this.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                                this.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
-
-                                this.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
-                                this.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
-                            }
-                        }
+                        audio.muteNoteForPlayer(this);
                     }
                 },
                 tick: function() {
@@ -469,6 +442,65 @@
             function Audio() {
                 let audio = this;
 
+                // configures audio for same-room setup using a pair of speakers per computer
+                this.selfOutputOnly = true;
+
+                // configures gain-compensation for bass-weak speakers
+                this.compensateLows = true;
+
+                // returns amplitude for given note number (given by log2(freq /16.35)). not a filter, just a hack to mimick one when generating voice envelopes. set up to compensate poor bass performance of exhibition speakers
+                // see https://www.desmos.com/calculator/a26zreyh5d
+                this.gainForNote = function(note) {
+                    let gain = 1.0;
+                    if(audio.compensateLows) {
+                        let gainHighShelf = 0.7;
+                        let gainLowShelf = 1.0;
+                        let cutoff = 3.6;
+                        let steepness = 1.2;
+                        let p = (Math.tanh((note - cutoff) * steepness) + 1) / 2.0;
+                        gain = gainHighShelf * p + gainLowShelf * (1 - p);
+                    }
+                    console.log(gain);
+                    return gain;
+                }
+
+                this.playNoteForPlayer = function(player) {
+                    if(audio.contextReady) {
+                        if(!audio.selfOutputOnly || player == players[0]) {
+                            let note = player.noteClass / 12.0 + player.noteOctave;
+                            let frequency = Math.pow(2, player.noteClass / 12.0 + player.noteOctave) * 16.35;
+                            let attack = 5.0 / frequency;
+                            let decay = 900.0 / frequency;
+                            let gain = audio.gainForNote(note);
+
+                            player.voice.carrier.oscillator.frequency.value = frequency;
+                            player.voice.modulator.oscillator.frequency.value = frequency;
+
+                            player.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                            player.voice.carrier.gain.gain.exponentialRampToValueAtTime(gain, audio.context.currentTime + attack);
+                            player.voice.carrier.gain.gain.setValueAtTime(gain, audio.context.currentTime + attack);
+                            player.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
+
+                            player.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                            player.voice.modulator.gain.gain.exponentialRampToValueAtTime(100, audio.context.currentTime + attack);
+                            player.voice.modulator.gain.gain.setValueAtTime(100, audio.context.currentTime + attack);
+                            player.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + attack + decay);
+                        }
+                    }
+                }
+
+                this.muteNoteForPlayer = function(player) {
+                    if(audio.contextReady) {
+                        if(!audio.selfOutputOnly || player == players[0]) {
+                            player.voice.carrier.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                            player.voice.carrier.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
+
+                            player.voice.modulator.gain.gain.cancelAndHoldAtTime(audio.context.currentTime);
+                            player.voice.modulator.gain.gain.exponentialRampToValueAtTime(0.0000001, audio.context.currentTime + 0.1);
+                        }
+                    }
+                }
+
                 function Modulator(type, frequency, index) {
                     if(audio.contextReady) {
                         this.oscillator = audio.context.createOscillator();
@@ -532,7 +564,7 @@
                 this.updateNodes = function() {
                     console.log("Updating audio nodes");
                     if(audio.contextReady) {
-                        if(selfAudioOutputOnly) {
+                        if(audio.selfOutputOnly) {
                             if(typeof players[0].voice == "undefined") {
                                 players[0].voice = new Voice(0, 0, 0);
                                 players[0].voice.panner.connect(audio.delay);
@@ -559,7 +591,7 @@
                 }
 
                 this.updatePan = function() {
-                    if(!selfAudioOutputOnly) {
+                    if(!audio.selfOutputOnly) {
                         if(audio.contextReady) {
                             let step = players[0].phraseLengthCummulative[players[0].phraseIndex] + players[0].phraseStep;
                             for(let i = 0; i < players.length; i++) {
@@ -638,6 +670,24 @@
                     } else if (graphics.language == "english") {
                         graphics.language = "french";
                     }
+                }
+
+                this.setTutorial = function(number) {
+                    graphics.stepTutorial = number;
+                }
+
+                this.nextTutorial = function() {
+                    graphics.stepTutorial++;
+                }
+
+                this.prevTutorial = function() {
+                    graphics.stepTutorial--;
+                }
+
+                this.xScaleCycle = function() {
+                    // cycles the xScale
+                    this.xScaleSetting = (this.xScaleSetting + 1) % 4;
+                    this.xScaleTarget = this.xScaleBasis * 1.0 / (1 << this.xScaleSetting);
                 }
 
                 this.getPixelRatio = function() {
@@ -965,24 +1015,6 @@
                             graphics.context.fillStyle = "#000000";
                             graphics.context.fillRect(0, graphics.ySplit, graphics.canvas.width, graphics.canvas.height - graphics.ySplit);
                     }
-                }
-
-                this.setTutorial = function(number) {
-                    graphics.stepTutorial = number;
-                }
-
-                this.nextTutorial = function() {
-                    graphics.stepTutorial++;
-                }
-
-                this.prevTutorial = function() {
-                    graphics.stepTutorial--;
-                }
-
-                this.xScaleCycle = function() {
-                    // cycles the xScale
-                    this.xScaleSetting = (this.xScaleSetting + 1) % 5;
-                    this.xScaleTarget = this.xScaleBasis * 1.0 / (1 << this.xScaleSetting);
                 }
 
                 this.drawScore = function() {
@@ -1606,7 +1638,9 @@
                         players[i].play();
                         players[i].tick();
                     }
-                    audio.updatePan();
+                    if(audio.contextReady) {
+                        audio.updatePan();
+                    }
                 })
             }
 

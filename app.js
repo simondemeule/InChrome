@@ -1,5 +1,7 @@
 "use strict";
 
+//var tempo = 120;
+//var interval = 1000.0 * 60.0 / (tempo * 4.0);
 var http = require("http");
 var fs = require("fs");
 
@@ -97,3 +99,5 @@ function timeout() {
 timeout();
 
 server.listen(8080);
+
+console.log("Server started successfully");
