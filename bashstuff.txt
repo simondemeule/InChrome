@@ -1,8 +1,0 @@
-#### open chrome at address
-/usr/bin/open -a "/Applications/Google Chrome.app" 'http://google.com/'
-
-### fullscreen
-/usr/bin/osascript -e "tell application \"Google Chrome\"" -e "activate" -e "tell application \"System Events\"" -e "keystroke \"f\" using {command down}" -e "end tell" -e "end tell"
-
-#### reload
-/usr/bin/osascript -e "tell application \"Google Chrome\"" -e "activate" -e "tell application \"System Events\"" -e "keystroke \"r\" using {command down}" -e "end tell" -e "end tell"
