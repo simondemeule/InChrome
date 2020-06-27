@@ -1,3 +1,3 @@
 #!/bin/bash
 cd "${0%/*}"
-node app.js
+node server.js
