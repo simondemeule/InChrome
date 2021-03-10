@@ -1,0 +1,25 @@
+{
+  "name": "In-Chrome",
+  "version": "1.0.0",
+  "description": "In Chrome is a web-based interactive experience that allows a group of users to perform Terry Riley's 1964 musical composition In C. In Chrome was notably awarded the Design and Computation Arts prize at Concordia University's 2019 Design and Computation Arts end of year show.",
+  "main": "client.js",
+  "dependencies": {
+    "socket.io": "^2.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/simondemeule/InChrome.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/simondemeule/InChrome/issues"
+  },
+  "homepage": "https://github.com/simondemeule/InChrome#readme"
+}
